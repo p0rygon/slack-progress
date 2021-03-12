@@ -1,13 +1,15 @@
 import time
 
-from slacker import Slacker
+import os
+import slack_sdk
+from slack_sdk.errors import SlackApiError
 
 
 class SlackProgress(object):
     def __init__(self, token, channel, suffix='%'):
         self.suffix = suffix
         self.channel = channel
-        self.slack = Slacker(token)
+        self.slack = slack_sdk.WebClient(token)
 
     def new(self, total=100):
         """
@@ -15,11 +17,10 @@ class SlackProgress(object):
         params:
          - total(int): total number of items
         """
-        res = self.slack.chat.post_message(self.channel, self._makebar(0), 
-                                           as_user=True)
+        res = self.slack.chat_postMessage(channel=self.channel, text=self._makebar(0))
         bar = ProgressBar(self, total)
-        bar.msg_ts = res.body['ts']
-        bar.channel_id = res.body['channel']
+        bar.msg_ts = res['ts']
+        bar.channel_id = res['channel']
         return bar
 
     def iter(self, iterable):
@@ -35,7 +36,7 @@ class SlackProgress(object):
     def _update(self, chan, msg_ts, pos, msg_log):
         content = [self._makebar(pos)] + msg_log
         content = '\n'.join(content)
-        self.slack.chat.update(chan, msg_ts, content)
+        self.slack.chat_update(channel=chan, ts=msg_ts, text=content)
 
     def _makebar(self, pos):
         bar = (round(pos / 5) * chr(9608))
