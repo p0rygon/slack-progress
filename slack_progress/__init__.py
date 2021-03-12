@@ -33,10 +33,10 @@ class SlackProgress(object):
             yield(item)
             bar.done = idx
 
-    def _update(self, chan, msg_ts, pos, msg_log):
-        content = [self._makebar(pos)] + msg_log
-        content = '\n'.join(content)
-        self.slack.chat_update(channel=chan, ts=msg_ts, text=content)
+    def update(self, chan, msg_ts, pos, msg_log=None):
+        self.slack.chat_update(channel=chan, ts=msg_ts, text=self._makebar(pos))
+        if msg_log is not None:
+            self.slack.chat_postMessage(channel=chan, thread_ts=msg_ts, text=msg_log)
 
     def _makebar(self, pos):
         bar = (round(pos / 5) * chr(9608))
@@ -76,8 +76,8 @@ class ProgressBar(object):
 
     def log(self, msg):
         timestamp = time.strftime('%X')  # returns HH:MM:SS time
-        self._msg_log.append('*{}* - [{}]'.format(timestamp, msg))
-        self._update()
+        msg_log = "*{}* - [{}]".format(timestamp, msg)
+        self._update(msg_log)
 
-    def _update(self):
-        self._sp._update(self.channel_id, self.msg_ts, self._pos, self._msg_log)
+    def _update(self, msg_log=None):
+        self._sp.update(self.channel_id, self.msg_ts, self._pos, msg_log)
