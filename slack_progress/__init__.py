@@ -17,8 +17,8 @@ class SlackProgress(object):
         params:
          - total(int): total number of items
         """
-        res = self.slack.chat_postMessage(channel=self.channel, text=f"{title}\n{self._makebar(0)}")
         bar = ProgressBar(self, title, total)
+        res = self.slack.chat_postMessage(channel=self.channel, text=f"{title}\n{self._makebar(bar)}")
         bar.msg_ts = res['ts']
         bar.channel_id = res['channel']
         return bar
@@ -33,14 +33,17 @@ class SlackProgress(object):
             yield(item)
             bar.done = idx
 
-    def update(self, chan, msg_ts, title, pos, msg_log=None):
-        self.slack.chat_update(channel=chan, ts=msg_ts, text=f"{title}\n{self._makebar(0)}")
+    def update(self, bar, msg_log=None):
+        self.slack.chat_update(channel=bar.channel_id, ts=bar.msg_ts, text=f"{bar.title}\n{self._makebar(bar)}")
         if msg_log is not None:
-            self.slack.chat_postMessage(channel=chan, thread_ts=msg_ts, text=msg_log)
+            self.slack.chat_postMessage(channel=bar.channel_id, thread_ts=bar.msg_ts, text=msg_log)
 
-    def _makebar(self, pos):
-        bar = (round(pos / 5) * chr(9608))
-        return '{} {}{}'.format(bar, pos, self.suffix)
+    def _makebar(self, bar):
+        black = ":black_large_square:"
+        white = ":white_large_square:"
+        p = int(bar.pos / bar.total * 10)
+        bar_str = p * black + (10 - p) * white
+        return '{} | ({}/{}) {}{}'.format(bar_str, bar.pos, bar.total, round(bar.pos / bar.total * 100, 1), self.suffix)
 
 
 class ProgressBar(object):
@@ -52,9 +55,8 @@ class ProgressBar(object):
         self._sp = sp
         self._pos = 0
         self._done = 0
-        self._title = title
+        self.title = title
         self.total = total
-        self._msg_log = []
 
     @property
     def done(self):
@@ -77,8 +79,8 @@ class ProgressBar(object):
 
     def log(self, msg):
         timestamp = time.strftime('%X')  # returns HH:MM:SS time
-        msg_log = "*{}* - [{}]".format(timestamp, msg)
+        msg_log = "*{}* - {}".format(timestamp, msg)
         self._update(msg_log)
 
     def _update(self, msg_log=None):
-        self._sp.update(self.channel_id, self.msg_ts, self._title, self._pos, msg_log)
+        self._sp.update(self, msg_log)
