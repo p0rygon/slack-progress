@@ -11,14 +11,14 @@ class SlackProgress(object):
         self.channel = channel
         self.slack = slack_sdk.WebClient(token)
 
-    def new(self, total=100):
+    def new(self, title=None, total=100):
         """
         Instantiate and return a new ProgressBar object
         params:
          - total(int): total number of items
         """
-        res = self.slack.chat_postMessage(channel=self.channel, text=self._makebar(0))
-        bar = ProgressBar(self, total)
+        res = self.slack.chat_postMessage(channel=self.channel, text=f"{title}\n{self._makebar(0)}")
+        bar = ProgressBar(self, title, total)
         bar.msg_ts = res['ts']
         bar.channel_id = res['channel']
         return bar
@@ -33,8 +33,8 @@ class SlackProgress(object):
             yield(item)
             bar.done = idx
 
-    def update(self, chan, msg_ts, pos, msg_log=None):
-        self.slack.chat_update(channel=chan, ts=msg_ts, text=self._makebar(pos))
+    def update(self, chan, msg_ts, title, pos, msg_log=None):
+        self.slack.chat_update(channel=chan, ts=msg_ts, text=f"{title}\n{self._makebar(0)}")
         if msg_log is not None:
             self.slack.chat_postMessage(channel=chan, thread_ts=msg_ts, text=msg_log)
 
@@ -48,10 +48,11 @@ class ProgressBar(object):
     msg_ts = None
     channel_id = None
 
-    def __init__(self, sp, total):
+    def __init__(self, sp, title, total):
         self._sp = sp
         self._pos = 0
         self._done = 0
+        self._title = title
         self.total = total
         self._msg_log = []
 
@@ -80,4 +81,4 @@ class ProgressBar(object):
         self._update(msg_log)
 
     def _update(self, msg_log=None):
-        self._sp.update(self.channel_id, self.msg_ts, self._pos, msg_log)
+        self._sp.update(self.channel_id, self.msg_ts, self._title, self._pos, msg_log)
